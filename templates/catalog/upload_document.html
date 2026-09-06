@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ site_name }} - {% trans "رفع ملف" %}{% endblock %}
+
+{% block content %}
+<section class="auth-panel" aria-labelledby="upload-title">
+  <p class="eyebrow">{% trans "مساهمة" %}</p>
+  <h1 id="upload-title">{% trans "رفع ملف PDF" %}</h1>
+  <p class="lead">{% blocktrans %}يسمح حالياً بملفات PDF فقط، حتى {{ max_upload_mib }} MiB. الملف يبقى خاصاً بانتظار الفحص ولا ينشر تلقائياً.{% endblocktrans %}</p>
+
+  {% if form.errors %}
+    <div class="form-errors" role="alert">
+      {% trans "راجع الحقول التالية. لم يتم حفظ الملف." %}
+    </div>
+  {% endif %}
+
+  <form class="auth-form" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="field">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+        {% for error in field.errors %}
+          <small class="field-error">{{ error }}</small>
+        {% endfor %}
+      </div>
+    {% endfor %}
+    <button type="submit">{% trans "رفع للفحص" %}</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ site_name }} - {% trans "قبول الدعوة" %}{% endblock %}
+
+{% block content %}
+<section class="auth-panel" aria-labelledby="invite-title">
+  <p class="eyebrow">{% trans "دعوة" %}</p>
+  <h1 id="invite-title">{% trans "قبول دعوة مساهمة" %}</h1>
+  <p class="lead">{% trans "قبول الدعوة يمنح الدور ضمن النطاق المحدد فقط، ولا يمنح صلاحية نشر الملفات." %}</p>
+
+  <dl class="scope-summary">
+    <div>
+      <dt>{% trans "المدعو" %}</dt>
+      <dd>{{ invitation.invited_identifier }}</dd>
+    </div>
+    <div>
+      <dt>{% trans "الدور" %}</dt>
+      <dd>{{ invitation.get_requested_role_display }}</dd>
+    </div>
+    <div>
+      <dt>{% trans "الحالة" %}</dt>
+      <dd>{{ invitation.get_status_display }}</dd>
+    </div>
+    <div>
+      <dt>{% trans "النطاق" %}</dt>
+      <dd>{{ invitation.scope_label }}</dd>
+    </div>
+  </dl>
+
+  {% if invitation.can_accept %}
+    <form class="auth-form" method="post">
+      {% csrf_token %}
+      <button type="submit">{% trans "قبول الدعوة" %}</button>
+    </form>
+  {% else %}
+    <p class="notice">{% trans "هذه الدعوة غير متاحة للقبول حالياً." %}</p>
+  {% endif %}
+</section>
+{% endblock %}

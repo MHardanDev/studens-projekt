@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ site_name }} - {% trans "مراجعة الملفات" %}{% endblock %}
+
+{% block content %}
+<section class="browse-head compact-intro" aria-labelledby="moderation-title">
+  <p class="eyebrow">{% trans "الإشراف" %}</p>
+  <h1 id="moderation-title">{% trans "ملفات بانتظار المراجعة" %}</h1>
+  <p class="lead">{% trans "تظهر هنا الملفات التي نجح فحصها وتقع ضمن نطاق إشرافك فقط." %}</p>
+</section>
+
+{% if form.non_field_errors %}
+  <div class="form-errors">
+    {{ form.non_field_errors }}
+  </div>
+{% endif %}
+
+<section class="content-section" aria-label="{% trans 'قائمة المراجعة' %}">
+  {% if documents %}
+    <div class="review-list">
+      {% for document in documents %}
+        <article class="review-item">
+          <div>
+            <p class="kicker">{{ document.offering.course.name }}</p>
+            <h2>{{ document.title }}</h2>
+            <p>{{ document.description|default:"لا يوجد وصف." }}</p>
+            <dl class="meta-list">
+              <div>
+                <dt>{% trans "المساهم" %}</dt>
+                <dd>{{ document.contributor|default:document.contributor_name|default:"غير محدد" }}</dd>
+              </div>
+              <div>
+                <dt>{% trans "الحالة" %}</dt>
+                <dd>{{ document.get_status_display }}</dd>
+              </div>
+              <div>
+                <dt>{% trans "الفحص" %}</dt>
+                <dd>{{ document.get_scan_status_display }}</dd>
+              </div>
+              <div>
+                <dt>{% trans "التاريخ" %}</dt>
+                <dd>{{ document.updated_at|date:"Y-m-d" }}</dd>
+              </div>
+            </dl>
+          </div>
+          <div class="review-actions">
+            <form method="post" action=".">
+              {% csrf_token %}
+              <input type="hidden" name="document_id" value="{{ document.id }}">
+              <input type="hidden" name="action" value="approve">
+              <button type="submit">{% trans "اعتماد" %}</button>
+            </form>
+            <form method="post" action=".">
+              {% csrf_token %}
+              <input type="hidden" name="document_id" value="{{ document.id }}">
+              <input type="hidden" name="action" value="reject">
+              <label for="reason-{{ document.id }}">{% trans "سبب الرفض" %}</label>
+              <textarea id="reason-{{ document.id }}" name="rejection_reason" rows="3" required></textarea>
+              <button class="danger-button" type="submit">{% trans "رفض" %}</button>
+            </form>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <h2>{% trans "لا توجد ملفات جاهزة للمراجعة" %}</h2>
+      <p>{% trans "أي ملف غير clean أو خارج نطاقك لن يظهر هنا." %}</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

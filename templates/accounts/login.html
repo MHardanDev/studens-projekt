@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ site_name }} - {% trans "تسجيل الدخول" %}{% endblock %}
+
+{% block content %}
+<section class="auth-panel" aria-labelledby="login-title">
+  <p class="eyebrow">{% trans "الحسابات" %}</p>
+  <h1 id="login-title">{% trans "تسجيل الدخول" %}</h1>
+  <p class="lead">{% trans "التصفح والبحث متاحان بدون حساب. الدخول مطلوب للإدارة والمساهمة لاحقاً." %}</p>
+
+  {% if form.errors %}
+    <div class="form-errors" role="alert">
+      {% trans "لم نتمكن من تسجيل الدخول بهذه البيانات." %}
+    </div>
+  {% endif %}
+
+  <form class="auth-form" method="post">
+    {% csrf_token %}
+    <div class="field">
+      <label for="{{ form.username.id_for_label }}">{% trans "اسم المستخدم" %}</label>
+      {{ form.username }}
+    </div>
+    <div class="field">
+      <label for="{{ form.password.id_for_label }}">{% trans "كلمة المرور" %}</label>
+      {{ form.password }}
+    </div>
+    <button type="submit">{% trans "دخول" %}</button>
+  </form>
+</section>
+{% endblock %}

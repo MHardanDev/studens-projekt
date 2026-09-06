@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ site_name }} - {% trans "بحث جامعي خفيف" %}{% endblock %}
+
+{% block content %}
+<section class="intro compact-intro" aria-labelledby="home-title">
+  <p class="eyebrow">{% trans "فهرس دراسي تجريبي" %}</p>
+  <h1 id="home-title">{% trans "ابحث عن مادة أو ملف بدون تسجيل" %}</h1>
+  <p class="lead">
+    {% trans "واجهة عربية خفيفة لطلاب سوريا. البيانات الحالية للتجربة فقط، والصفحات تعمل بروابط ونماذج HTML دون JavaScript إجباري." %}
+  </p>
+
+  <form class="search-form" method="get" action=".">
+    <label for="q">{% trans "ابحث باسم المادة أو عنوان الملف" %}</label>
+    <div class="search-row">
+      <input id="q" name="q" type="search" value="{{ query }}" placeholder="{% trans 'مثال: محاسبة أو اقتصاد جزئي' %}">
+      <button type="submit">{% trans "بحث" %}</button>
+    </div>
+  </form>
+
+  <div class="action-row">
+    <a class="button-link" href="{% url 'pages:browse' %}">{% trans "تصفح الكليات والمواد" %}</a>
+    {% if resume_url %}
+      <a class="quiet-link resume-link" href="{{ resume_url }}">{% trans "تابع من آخر مكان" %}</a>
+    {% endif %}
+  </div>
+</section>
+
+{% if query %}
+  <section class="content-section" aria-labelledby="search-title">
+    <div class="section-heading">
+      <h2 id="search-title">{% trans "نتائج البحث" %}</h2>
+      <span class="subtle">{{ query }}</span>
+    </div>
+
+    {% if has_search_results %}
+      <div class="result-grid">
+        {% for offering in course_results %}
+          <article class="result-card">
+            <p class="kicker">{% trans "مادة" %}</p>
+            <h3>{{ offering.course.name }}</h3>
+            <p>{{ offering.program.faculty.university.name }} - {{ offering.program.faculty.name }}</p>
+            <small>{{ offering.year_level.name }} - {{ offering.term.name }}</small>
+          </article>
+        {% endfor %}
+        {% for document in document_results %}
+          <article class="result-card">
+            <p class="kicker">{% trans "ملف تجريبي" %}</p>
+            <h3><a href="{{ document.get_absolute_url }}">{{ document.title }}</a></h3>
+            <p>{{ document.offering.course.name }}</p>
+            <small>{{ document.get_content_type_display }} - {{ document.academic_year }}</small>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>{% trans "لا توجد نتائج مطابقة" %}</h3>
+        <p>{% trans "جرّب اسماً أقصر للمادة، أو افتح التصفح لرؤية المواد المتاحة حالياً." %}</p>
+      </div>
+    {% endif %}
+  </section>
+{% endif %}
+
+<section class="content-section" aria-labelledby="latest-title">
+  <div class="section-heading">
+    <h2 id="latest-title">{% trans "أحدث الملفات التجريبية" %}</h2>
+    <a href="{% url 'pages:browse' %}">{% trans "كل المواد" %}</a>
+  </div>
+
+  {% if latest_documents %}
+    <div class="document-list">
+      {% for document in latest_documents %}
+        <article class="document-row">
+          <div>
+            <h3><a href="{{ document.get_absolute_url }}">{{ document.title }}</a></h3>
+            <p>{{ document.offering.course.name }} - {{ document.offering.year_level.name }} - {{ document.offering.term.name }}</p>
+          </div>
+          <span>{{ document.get_content_type_display }}</span>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <h3>{% trans "لا توجد ملفات تجريبية بعد" %}</h3>
+      <p>{% trans "شغّل seed التجريبي أو أضف بيانات من لوحة الإدارة لرؤية الملفات هنا." %}</p>
+    </div>
+  {% endif %}
+</section>
+
+<section class="content-section two-column" aria-label="{% trans 'نظرة سريعة' %}">
+  <div>
+    <div class="section-heading">
+      <h2>{% trans "الكليات المتاحة" %}</h2>
+    </div>
+    {% if available_faculties %}
+      <div class="compact-list">
+        {% for university in available_faculties %}
+          {% for faculty in university.faculties.all %}
+            <article>
+              <h3>{{ faculty.name }}</h3>
+              <p>{{ university.name }}</p>
+            </article>
+          {% endfor %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-note">{% trans "لا توجد كليات مسجلة بعد." %}</p>
+    {% endif %}
+  </div>
+
+  <div>
+    <div class="section-heading">
+      <h2>{% trans "مواد بحاجة لملفات" %}</h2>
+    </div>
+    {% if missing_offerings %}
+      <div class="compact-list">
+        {% for offering in missing_offerings %}
+          <article>
+            <h3>{{ offering.course.name }}</h3>
+            <p>{{ offering.year_level.name }} - {{ offering.term.name }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-note">{% trans "لا توجد مواد ناقصة ضمن البيانات الحالية." %}</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

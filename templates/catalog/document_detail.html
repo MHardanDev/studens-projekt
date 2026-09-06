@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ version.title }} - {{ site_name }}{% endblock %}
+
+{% block content %}
+<article class="document-detail" aria-labelledby="document-title">
+  <header class="document-detail-head">
+    <p class="eyebrow">{{ version.get_content_type_display }}</p>
+    <h1 id="document-title">{{ version.title }}</h1>
+    {% if version.description %}<p class="lead">{{ version.description }}</p>{% endif %}
+  </header>
+
+  <dl class="document-metadata">
+    <div><dt>{% trans "الجامعة" %}</dt><dd>{{ version.offering.program.faculty.university.name }}</dd></div>
+    <div><dt>{% trans "الكلية" %}</dt><dd>{{ version.offering.program.faculty.name }}</dd></div>
+    <div><dt>{% trans "البرنامج" %}</dt><dd>{{ version.offering.program.name }}</dd></div>
+    <div><dt>{% trans "السنة" %}</dt><dd>{{ version.offering.year_level.name }}</dd></div>
+    <div><dt>{% trans "الفصل" %}</dt><dd>{{ version.offering.term.name }}</dd></div>
+    <div><dt>{% trans "المادة" %}</dt><dd>{{ version.offering.course.name }}</dd></div>
+    <div><dt>{% trans "نوع المحتوى" %}</dt><dd>{{ version.get_content_type_display }}</dd></div>
+    <div><dt>{% trans "رقم الإصدار" %}</dt><dd>{{ version.version_number }}</dd></div>
+    <div><dt>{% trans "تاريخ النشر" %}</dt><dd>{{ version.reviewed_at|default:version.created_at|date:"Y-m-d" }}</dd></div>
+    {% if version.file_size %}<div><dt>{% trans "حجم الملف" %}</dt><dd>{{ version.file_size|filesizeformat }}</dd></div>{% endif %}
+    {% if version.page_count %}<div><dt>{% trans "عدد الصفحات" %}</dt><dd>{{ version.page_count }}</dd></div>{% endif %}
+  </dl>
+
+  {% if data_saver_enabled %}
+    <p class="notice">{% trans "وضع توفير البيانات مفعّل. لا توجد معاينة تلقائية؛ يمكنك تنزيل الملف مباشرة." %}</p>
+  {% endif %}
+
+  <div class="document-actions">
+    {% if download_available %}
+      <p class="document-download-meta">
+        <span>{% trans "الإصدار" %}: {{ version.version_number }}</span>
+        {% if version.file_size %}<span>&bull; {% trans "الحجم" %}: {{ version.file_size|filesizeformat }}</span>{% endif %}
+        {% if version.page_count %}<span>&bull; {% trans "عدد الصفحات" %}: {{ version.page_count }}</span>{% endif %}
+      </p>
+      <a class="button-link" href="{% url 'catalog:download_document' document.id %}">{% trans "تنزيل PDF" %}</a>
+    {% else %}
+      <p class="empty-note">{% trans "هذه بيانات تجريبية ولا يوجد ملف PDF فعلي للتنزيل." %}</p>
+    {% endif %}
+    <a class="quiet-link report-link" href="{% url 'catalog:report_document' document.id %}">{% trans "بلاغ عن الملف" %}</a>
+  </div>
+</article>
+{% endblock %}

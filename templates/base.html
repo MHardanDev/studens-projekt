@@ -1,0 +1,71 @@
+{% load i18n static %}
+<!doctype html>
+<html lang="{{ request.LANGUAGE_CODE|default:'ar' }}" dir="{% if request.LANGUAGE_CODE == 'ar' %}rtl{% else %}ltr{% endif %}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>{% block title %}{{ site_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/site.css' %}">
+</head>
+<body{% if data_saver_enabled %} class="data-saver"{% endif %}>
+  <a class="skip-link" href="#main">{% trans "تجاوز إلى المحتوى" %}</a>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a class="brand" href="{% url 'pages:home' %}">{{ site_name }}</a>
+      <nav class="nav" aria-label="{% trans 'التنقل الرئيسي' %}">
+        <a href="{% url 'pages:browse' %}">{% trans "تصفح الكليات" %}</a>
+        <a href="#trust">{% trans "الثقة والحقوق" %}</a>
+      </nav>
+      <div class="account-nav">
+        {% if request.user.is_authenticated %}
+          <span>{{ request.user.username }}</span>
+          {% if request.user.role == "trusted_contributor" %}
+            <a href="{% url 'catalog:upload_document' %}">{% trans "رفع ملف" %}</a>
+          {% endif %}
+          {% if request.user.role == "faculty_moderator" or request.user.role == "site_admin" %}
+            <a href="{% url 'catalog:moderation_documents' %}">{% trans "مراجعة" %}</a>
+          {% endif %}
+          <form method="post" action="{% url 'accounts:logout' %}">
+            {% csrf_token %}
+            <button class="link-button" type="submit">{% trans "خروج" %}</button>
+          </form>
+        {% else %}
+          <a href="{% url 'accounts:login' %}">{% trans "دخول" %}</a>
+        {% endif %}
+      </div>
+      <div class="utility-nav">
+        <nav class="language-nav" aria-label="{% trans 'تغيير اللغة' %}">
+          {% for language in language_links %}
+            <a href="{{ language.href }}" lang="{{ language.code }}">{{ language.name }}</a>
+          {% endfor %}
+        </nav>
+        <form class="data-saver-form" method="post" action="{% url 'pages:set_data_saver' %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <input type="hidden" name="enabled" value="{% if data_saver_enabled %}0{% else %}1{% endif %}">
+          <button class="utility-button" type="submit">
+            {% if data_saver_enabled %}{% trans "توفير البيانات: مفعّل" %}{% else %}{% trans "توفير البيانات" %}{% endif %}
+          </button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="shell main">
+    {% if messages %}
+      <div class="message-list" aria-live="polite">
+        {% for message in messages %}<p class="notice">{{ message }}</p>{% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer" id="trust">
+    <div class="shell footer-grid">
+      <p>{% trans "منصة عربية مستقلة قيد البناء. البيانات المعروضة الآن تجريبية وليست خطة جامعية رسمية." %}</p>
+      <p>{% trans "التنزيل متاح فقط للنسخ المعتمدة التي نجح فحصها. لا توجد إعلانات." %}</p>
+    </div>
+  </footer>
+</body>
+</html>

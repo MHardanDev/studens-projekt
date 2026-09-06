@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ site_name }} - {% trans "تصفح الكليات والمواد" %}{% endblock %}
+
+{% block content %}
+<section class="browse-head" aria-labelledby="browse-page-title">
+  <p class="eyebrow">{% trans "تصفح سريع" %}</p>
+  <h1 id="browse-page-title">{% trans "الكليات والمواد" %}</h1>
+  <p class="lead">{% trans "اختر السنة والفصل ثم المادة. كل ما يظهر هنا يأتي من قاعدة البيانات، والبيانات التجريبية ليست خطة رسمية." %}</p>
+
+  <form class="search-form" method="get" action=".">
+    <label for="browse-q">{% trans "ابحث داخل الفهرس" %}</label>
+    <div class="search-row">
+      <input id="browse-q" name="q" type="search" value="{{ query }}" placeholder="{% trans 'اسم مادة أو ملف' %}">
+      <button type="submit">{% trans "بحث" %}</button>
+    </div>
+  </form>
+</section>
+
+{% if query %}
+  <section class="content-section" aria-labelledby="browse-search-title">
+    <div class="section-heading">
+      <h2 id="browse-search-title">{% trans "نتائج البحث" %}</h2>
+      <a href="{% url 'pages:browse' %}">{% trans "مسح البحث" %}</a>
+    </div>
+    {% if has_search_results %}
+      <div class="result-grid">
+        {% for offering in course_results %}
+          <article class="result-card">
+            <p class="kicker">{% trans "مادة" %}</p>
+            <h3>{{ offering.course.name }}</h3>
+            <p>{{ offering.program.faculty.name }} - {{ offering.program.name }}</p>
+            <small>{{ offering.year_level.name }} - {{ offering.term.name }}</small>
+          </article>
+        {% endfor %}
+        {% for document in document_results %}
+          <article class="result-card">
+            <p class="kicker">{% trans "ملف تجريبي" %}</p>
+            <h3><a href="{{ document.get_absolute_url }}">{{ document.title }}</a></h3>
+            <p>{{ document.offering.course.name }}</p>
+            <small>{{ document.get_content_type_display }} - {{ document.academic_year }}</small>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>{% trans "لا توجد نتائج" %}</h3>
+        <p>{% trans "لم نجد مادة أو ملفاً تجريبياً بهذا النص." %}</p>
+      </div>
+    {% endif %}
+  </section>
+{% endif %}
+
+<section class="content-section" aria-labelledby="catalog-title">
+  <h2 id="catalog-title">{% trans "الفهرس الدراسي" %}</h2>
+
+  {% if universities %}
+    <div class="browse-list">
+      {% for university in universities %}
+        <section class="faculty-block" aria-labelledby="university-{{ university.slug }}">
+          <div class="catalog-title-row">
+            <h3 id="university-{{ university.slug }}">{{ university.name }}</h3>
+            {% if university.is_demo %}<span class="tag">{% trans "تجريبي" %}</span>{% endif %}
+          </div>
+          {% for faculty in university.faculties.all %}
+            <section class="nested-section" aria-labelledby="faculty-{{ faculty.slug }}">
+              <h4 id="faculty-{{ faculty.slug }}">{{ faculty.name }}</h4>
+              {% for program in faculty.programs.all %}
+                <section class="program-block" aria-labelledby="program-{{ program.slug }}">
+                  <p class="program-name" id="program-{{ program.slug }}">{{ program.name }}</p>
+                  {% for level in program.year_levels.all %}
+                    <section class="level-block" aria-label="{{ level.name }}">
+                      <h5>{{ level.name }}</h5>
+                      <div class="term-grid">
+                        {% for term in level.terms.all %}
+                          <section class="term-block" aria-label="{{ term.name }}">
+                            <p class="term-title">{{ term.name }}</p>
+                            {% if term.course_offerings.all %}
+                              <ol class="course-list">
+                                {% for offering in term.course_offerings.all %}
+                                  <li id="course-{{ offering.id }}">
+                                    <div class="course-main">
+                                      <span class="course-name">{{ offering.course.name }}</span>
+                                      <small>{{ offering.academic_year|default:"عام غير محدد" }}</small>
+                                    </div>
+                                    {% if offering.public_documents %}
+                                      <ul class="mini-doc-list">
+                                        {% for document in offering.public_documents %}
+                                          <li>
+                                            <a class="document-title-link" href="{{ document.get_absolute_url }}">{{ document.title }}</a>
+                                            <small>{{ document.get_content_type_display }}</small>
+                                            <a class="quiet-link" href="{% url 'catalog:report_document' document.id %}">{% trans "بلاغ" %}</a>
+                                          </li>
+                                        {% endfor %}
+                                      </ul>
+                                    {% else %}
+                                      <small class="empty-note">{% trans "لا توجد ملفات منشورة لهذه المادة بعد." %}</small>
+                                    {% endif %}
+                                  </li>
+                                {% endfor %}
+                              </ol>
+                            {% else %}
+                              <p class="empty-note">{% trans "لا مواد مسجلة في هذا الفصل بعد." %}</p>
+                            {% endif %}
+                          </section>
+                        {% endfor %}
+                      </div>
+                    </section>
+                  {% endfor %}
+                </section>
+              {% endfor %}
+            </section>
+          {% endfor %}
+        </section>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <h3>{% trans "لا توجد بيانات دراسية بعد" %}</h3>
+      <p>{% trans "أضف جامعة وكلية وبرنامجاً ومواداً من لوحة الإدارة، أو شغّل seed التجريبي محلياً." %}</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

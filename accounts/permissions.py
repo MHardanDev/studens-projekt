@@ -1,0 +1,55 @@
+from django.db.models import Q
+
+from .models import ModeratorScope, User
+
+
+def offering_matches_scope(offering, scope):
+    if scope.course_id and offering.course_id != scope.course_id:
+        return False
+    if scope.program_id and offering.program_id != scope.program_id:
+        return False
+    if scope.faculty_id and offering.program.faculty_id != scope.faculty_id:
+        return False
+    if (
+        scope.university_id
+        and offering.program.faculty.university_id != scope.university_id
+    ):
+        return False
+    return True
+
+
+def moderator_scope_filter(user):
+    scopes = ModeratorScope.objects.filter(user=user)
+    query = Q(pk__in=[])
+    for scope in scopes:
+        current = Q()
+        if scope.course_id:
+            current &= Q(offering__course=scope.course)
+        if scope.program_id:
+            current &= Q(offering__program=scope.program)
+        if scope.faculty_id:
+            current &= Q(offering__program__faculty=scope.faculty)
+        if scope.university_id:
+            current &= Q(offering__program__faculty__university=scope.university)
+        query |= current
+    return query
+
+
+def user_can_moderate_offering(user, offering):
+    if not user or not user.is_authenticated:
+        return False
+    if user.role not in {User.Role.FACULTY_MODERATOR, User.Role.SITE_ADMIN}:
+        return False
+    scopes = ModeratorScope.objects.filter(user=user).select_related(
+        "university",
+        "faculty",
+        "program",
+        "course",
+    )
+    return any(offering_matches_scope(offering, scope) for scope in scopes)
+
+
+def user_can_review_document(user, document):
+    if document.contributor_id and document.contributor_id == user.id:
+        return False
+    return user_can_moderate_offering(user, document.offering)
