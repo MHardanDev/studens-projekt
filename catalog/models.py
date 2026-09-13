@@ -586,6 +586,73 @@ class DocumentReport(TimestampedModel):
         return f"{self.get_report_type_display()} - {self.document.title}"
 
 
+class MissingMaterialRequest(TimestampedModel):
+    class Status(models.TextChoices):
+        OPEN = "open", "مفتوح"
+        IN_PROGRESS = "in_progress", "قيد المتابعة"
+        FULFILLED = "fulfilled", "تمت تلبيته"
+        REJECTED = "rejected", "مرفوض"
+        DUPLICATE = "duplicate", "مكرر"
+
+    offering = models.ForeignKey(
+        CourseOffering,
+        on_delete=models.PROTECT,
+        related_name="material_requests",
+    )
+    request_type = models.CharField(
+        max_length=30,
+        choices=StudyDocument.ContentType.choices,
+    )
+    description = models.TextField(max_length=500)
+    student_name = models.CharField(max_length=120, blank=True)
+    email = models.EmailField(blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.OPEN,
+        db_index=True,
+    )
+    supervisor_notes = models.TextField(blank=True)
+    fulfilled_document = models.ForeignKey(
+        StudyDocument,
+        on_delete=models.SET_NULL,
+        related_name="fulfilled_material_requests",
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "created_at"]),
+        ]
+        permissions = [
+            (
+                "manage_missing_material_requests",
+                "Can manage missing material requests within assigned scope",
+            ),
+        ]
+        verbose_name = "طلب ملف ناقص"
+        verbose_name_plural = "طلبات الملفات الناقصة"
+
+    def clean(self):
+        super().clean()
+        if self.description and not self.description.strip():
+            raise ValidationError({"description": "وصف الطلب مطلوب."})
+        if self.fulfilled_document_id:
+            if not self.fulfilled_document.can_be_public:
+                raise ValidationError(
+                    {"fulfilled_document": "يجب اختيار ملف منشور ومتاح للعامة."},
+                )
+            if self.fulfilled_document.offering_id != self.offering_id:
+                raise ValidationError(
+                    {"fulfilled_document": "الملف المنشور يجب أن يخص المادة نفسها."},
+                )
+
+    def __str__(self):
+        return f"{self.get_request_type_display()} - {self.offering.course.name}"
+
+
 def make_slug(value):
     slug = slugify(value, allow_unicode=True)
     return slug or value.replace(" ", "-")

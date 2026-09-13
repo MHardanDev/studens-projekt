@@ -1,6 +1,12 @@
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 
+from accounts.permissions import (
+    moderator_scope_filter,
+    user_can_access_material_request_management,
+    user_can_manage_material_request,
+)
+
 from .models import (
     AcademicYearLevel,
     Course,
@@ -8,11 +14,13 @@ from .models import (
     DocumentReport,
     DocumentVersion,
     Faculty,
+    MissingMaterialRequest,
     Program,
     StudyDocument,
     Term,
     University,
 )
+from .publication import published_documents
 
 
 @admin.register(University)
@@ -276,3 +284,82 @@ class DocumentReportAdmin(admin.ModelAdmin):
         "document__offering__course__name",
     ]
     ordering = ["-created_at"]
+
+
+@admin.register(MissingMaterialRequest)
+class MissingMaterialRequestAdmin(admin.ModelAdmin):
+    list_display = [
+        "course_name",
+        "request_type",
+        "status",
+        "student_name",
+        "email",
+        "fulfilled_document",
+        "created_at",
+    ]
+    list_filter = [
+        "status",
+        "request_type",
+        "offering__program__faculty__university",
+        "offering__program__faculty",
+        "offering__program",
+        "offering__year_level",
+        "offering__term",
+        "offering__course",
+        "created_at",
+    ]
+    search_fields = [
+        "description",
+        "student_name",
+        "email",
+        "offering__course__name",
+        "offering__program__name",
+    ]
+    readonly_fields = ["offering", "created_at", "updated_at"]
+    ordering = ["-created_at"]
+
+    @admin.display(description="المادة")
+    def course_name(self, obj):
+        return obj.offering.course.name
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.is_superuser:
+            return queryset
+        if not user_can_access_material_request_management(request.user):
+            return queryset.none()
+        return queryset.filter(moderator_scope_filter(request.user)).distinct()
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "fulfilled_document":
+            queryset = published_documents()
+            if not request.user.is_superuser:
+                queryset = queryset.filter(
+                    moderator_scope_filter(request.user),
+                ).distinct()
+            kwargs["queryset"] = queryset
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def has_module_permission(self, request):
+        return self.has_view_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._can_manage(request.user, obj)
+
+    def has_change_permission(self, request, obj=None):
+        return self._can_manage(request.user, obj)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return bool(request.user.is_active and request.user.is_superuser)
+
+    def _can_manage(self, user, obj=None):
+        if not user.is_active or not user.is_staff:
+            return False
+        if user.is_superuser:
+            return True
+        if obj is None:
+            return user_can_access_material_request_management(user)
+        return user_can_manage_material_request(user, obj)

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "إدارة طلبات الملفات" %} - {{ site_name }}{% endblock %}
+
+{% block content %}
+<section class="browse-head compact-intro" aria-labelledby="material-requests-title">
+  <p class="eyebrow">{% trans "الإشراف" %}</p>
+  <h1 id="material-requests-title">{% trans "طلبات الملفات الناقصة" %}</h1>
+  <p class="lead">{% trans "تظهر الطلبات الواقعة ضمن نطاق إشرافك فقط. بيانات التواصل خاصة ولا تظهر في الصفحات العامة." %}</p>
+</section>
+
+<section class="content-section" aria-label="{% trans 'قائمة الطلبات' %}">
+  {% if request_rows %}
+    <div class="review-list">
+      {% for row in request_rows %}
+        <article class="review-item request-item">
+          <div>
+            <p class="kicker">{{ row.item.get_request_type_display }}</p>
+            <h2>{{ row.item.offering.course.name }}</h2>
+            <p>{{ row.item.description }}</p>
+            <dl class="meta-list">
+              <div><dt>{% trans "الجامعة" %}</dt><dd>{{ row.item.offering.program.faculty.university.name }}</dd></div>
+              <div><dt>{% trans "الكلية" %}</dt><dd>{{ row.item.offering.program.faculty.name }}</dd></div>
+              <div><dt>{% trans "البرنامج" %}</dt><dd>{{ row.item.offering.program.name }}</dd></div>
+              <div><dt>{% trans "السنة والفصل" %}</dt><dd>{{ row.item.offering.year_level.name }} - {{ row.item.offering.term.name }}</dd></div>
+              <div><dt>{% trans "الحالة" %}</dt><dd>{{ row.item.get_status_display }}</dd></div>
+              <div><dt>{% trans "التاريخ" %}</dt><dd>{{ row.item.created_at|date:"Y-m-d" }}</dd></div>
+            </dl>
+            {% if row.item.student_name or row.item.email %}
+              <div class="private-contact">
+                <strong>{% trans "تواصل خاص" %}</strong>
+                {% if row.item.student_name %}<span>{{ row.item.student_name }}</span>{% endif %}
+                {% if row.item.email %}<span>{{ row.item.email }}</span>{% endif %}
+              </div>
+            {% endif %}
+            {% if row.item.fulfilled_document %}
+              <p><a href="{{ row.item.fulfilled_document.get_absolute_url }}">{% trans "فتح الملف المرتبط" %}</a></p>
+            {% endif %}
+          </div>
+          <form class="request-management-form" method="post" action=".">
+            {% csrf_token %}
+            <input type="hidden" name="request_id" value="{{ row.item.id }}">
+            {% if row.form.non_field_errors %}<div class="form-errors">{{ row.form.non_field_errors }}</div>{% endif %}
+            {% for field in row.form %}
+              <div class="field">
+                {{ field.label_tag }}
+                {{ field }}
+                {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+              </div>
+            {% endfor %}
+            <button type="submit">{% trans "حفظ التحديث" %}</button>
+          </form>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <h2>{% trans "لا توجد طلبات ضمن نطاقك" %}</h2>
+      <p>{% trans "ستظهر هنا الطلبات الجديدة المرتبطة بمواد نطاق الإشراف." %}</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

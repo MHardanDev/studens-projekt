@@ -26,6 +26,9 @@
           {% if request.user.role == "faculty_moderator" or request.user.role == "site_admin" %}
             <a href="{% url 'catalog:moderation_documents' %}">{% trans "مراجعة" %}</a>
           {% endif %}
+          {% if request.user.role == "faculty_moderator" or request.user.role == "site_admin" or perms.catalog.manage_missing_material_requests %}
+            <a href="{% url 'catalog:moderation_material_requests' %}">{% trans "الطلبات" %}</a>
+          {% endif %}
           <form method="post" action="{% url 'accounts:logout' %}">
             {% csrf_token %}
             <button class="link-button" type="submit">{% trans "خروج" %}</button>

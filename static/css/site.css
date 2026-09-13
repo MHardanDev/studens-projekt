@@ -52,6 +52,7 @@ button,
 input[type="search"],
 input[type="text"],
 input[type="password"],
+input[type="email"],
 input[type="number"],
 input[type="file"],
 select,
@@ -111,6 +112,7 @@ select,
 textarea,
 input[type="text"],
 input[type="password"],
+input[type="email"],
 input[type="number"],
 input[type="file"] {
   width: 100%;
@@ -341,6 +343,14 @@ h5 {
   align-items: center;
 }
 
+.compact-action {
+  width: fit-content;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  margin-block-start: var(--space-1);
+}
+
 .notice {
   border-inline-start: 4px solid var(--accent);
   padding: var(--space-2) var(--space-3);
@@ -464,6 +474,10 @@ h5 {
 
 .auth-panel {
   max-width: 32rem;
+}
+
+.form-panel {
+  max-width: 42rem;
 }
 
 .auth-form,
@@ -646,9 +660,25 @@ h5 {
 
 .review-actions,
 .review-actions form,
+.request-management-form,
 .meta-list {
   display: grid;
   gap: var(--space-2);
+}
+
+.private-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-3);
+  border-inline-start: 3px solid var(--accent);
+  padding-inline-start: var(--space-2);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.request-management-form {
+  align-content: start;
 }
 
 .meta-list {

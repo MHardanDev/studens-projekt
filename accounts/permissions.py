@@ -49,6 +49,31 @@ def user_can_moderate_offering(user, offering):
     return any(offering_matches_scope(offering, scope) for scope in scopes)
 
 
+def user_can_access_material_request_management(user):
+    if not user or not user.is_authenticated:
+        return False
+    if user.role in {User.Role.FACULTY_MODERATOR, User.Role.SITE_ADMIN}:
+        return True
+    return bool(
+        user.role == User.Role.TRUSTED_CONTRIBUTOR
+        and user.has_perm("catalog.manage_missing_material_requests")
+    )
+
+
+def user_can_manage_material_request(user, material_request):
+    if not user_can_access_material_request_management(user):
+        return False
+    scopes = ModeratorScope.objects.filter(user=user).select_related(
+        "university",
+        "faculty",
+        "program",
+        "course",
+    )
+    return any(
+        offering_matches_scope(material_request.offering, scope) for scope in scopes
+    )
+
+
 def user_can_review_document(user, document):
     if document.contributor_id and document.contributor_id == user.id:
         return False

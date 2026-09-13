@@ -7,6 +7,7 @@ DATA_SAVER_COOKIE = "data_saver"
 LAST_LOCATION_COOKIE = "last_public_location"
 COOKIE_MAX_AGE = 30 * 24 * 60 * 60
 REMEMBERED_VIEWS = {
+    "catalog:course_detail",
     "catalog:document_detail",
     "pages:browse",
     "pages:home",

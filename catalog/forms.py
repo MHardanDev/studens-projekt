@@ -5,7 +5,13 @@ from django.conf import settings
 
 from accounts.models import ContributorScope, User
 
-from .models import CourseOffering, DocumentReport, StudyDocument
+from .models import (
+    CourseOffering,
+    DocumentReport,
+    MissingMaterialRequest,
+    StudyDocument,
+)
+from .publication import published_documents
 
 
 class StudyDocumentUploadForm(forms.ModelForm):
@@ -138,3 +144,77 @@ class DocumentReportForm(forms.ModelForm):
         widgets = {
             "body": forms.Textarea(attrs={"rows": 4}),
         }
+
+
+class MissingMaterialRequestForm(forms.ModelForm):
+    class Meta:
+        model = MissingMaterialRequest
+        fields = [
+            "offering",
+            "request_type",
+            "description",
+            "student_name",
+            "email",
+        ]
+        labels = {
+            "offering": "المادة والسياق الدراسي",
+            "request_type": "نوع الملف المطلوب",
+            "description": "وصف مختصر",
+            "student_name": "اسم الطالب (اختياري)",
+            "email": "البريد الإلكتروني (اختياري وخاص)",
+        }
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 4, "maxlength": 500}),
+            "student_name": forms.TextInput(attrs={"autocomplete": "name"}),
+            "email": forms.EmailInput(attrs={"autocomplete": "email"}),
+        }
+        error_messages = {
+            "description": {
+                "required": "اكتب وصفاً مختصراً للملف المطلوب.",
+            },
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["offering"].queryset = CourseOffering.objects.select_related(
+            "course",
+            "program__faculty__university",
+            "year_level",
+            "term",
+        ).order_by(
+            "program__faculty__university__name",
+            "program__faculty__name",
+            "program__name",
+            "year_level__order",
+            "term__order",
+            "course__name",
+        )
+
+    def clean_description(self):
+        description = self.cleaned_data["description"].strip()
+        if not description:
+            raise forms.ValidationError("اكتب وصفاً مختصراً للملف المطلوب.")
+        return description
+
+
+class MissingMaterialRequestModerationForm(forms.ModelForm):
+    class Meta:
+        model = MissingMaterialRequest
+        fields = ["status", "supervisor_notes", "fulfilled_document"]
+        labels = {
+            "status": "الحالة",
+            "supervisor_notes": "ملاحظات المشرف",
+            "fulfilled_document": "الملف المنشور المرتبط",
+        }
+        widgets = {
+            "supervisor_notes": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.offering_id:
+            self.fields["fulfilled_document"].queryset = published_documents().filter(
+                offering=self.instance.offering,
+            )
+        else:
+            self.fields["fulfilled_document"].queryset = StudyDocument.objects.none()

@@ -12,6 +12,17 @@ urlpatterns = [
         name="moderation_documents",
     ),
     path(
+        "moderation/requests/",
+        views.moderation_material_requests,
+        name="moderation_material_requests",
+    ),
+    path("requests/new/", views.request_material, name="request_material"),
+    path(
+        "courses/<int:offering_id>/",
+        views.course_detail,
+        name="course_detail",
+    ),
+    path(
         "documents/<int:document_id>/",
         views.document_detail,
         name="document_detail",

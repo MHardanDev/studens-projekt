@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ offering.course.name }} - {{ site_name }}{% endblock %}
+
+{% block content %}
+<article class="course-detail" aria-labelledby="course-title">
+  <header class="document-detail-head">
+    <p class="eyebrow">{% trans "مادة دراسية" %}</p>
+    <h1 id="course-title">{{ offering.course.name }}</h1>
+    <p class="lead">{{ offering.program.faculty.university.name }} - {{ offering.program.faculty.name }} - {{ offering.program.name }}</p>
+    <p>{{ offering.year_level.name }} - {{ offering.term.name }}{% if offering.academic_year %} - {{ offering.academic_year }}{% endif %}</p>
+    <div class="action-row">
+      <a class="button-link" href="{% url 'catalog:request_material' %}?offering={{ offering.id }}">{% trans "اطلب ملفاً ناقصاً" %}</a>
+      <a class="quiet-link resume-link" href="{% url 'pages:browse' %}#course-{{ offering.id }}">{% trans "العودة إلى التصفح" %}</a>
+    </div>
+  </header>
+
+  <section class="content-section" aria-labelledby="course-documents-title">
+    <h2 id="course-documents-title">{% trans "الملفات المنشورة" %}</h2>
+    {% if documents %}
+      <div class="document-list">
+        {% for document in documents %}
+          <article class="document-row">
+            <div>
+              <h3><a href="{{ document.get_absolute_url }}">{{ document.title }}</a></h3>
+              <p>{{ document.get_content_type_display }}</p>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>{% trans "لا توجد ملفات منشورة لهذه المادة" %}</h3>
+        <p>{% trans "يمكنك إرسال طلب يوضح نوع الملف الذي تحتاجه." %}</p>
+      </div>
+    {% endif %}
+  </section>
+</article>
+{% endblock %}

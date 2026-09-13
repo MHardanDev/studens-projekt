@@ -21,6 +21,7 @@
 
   <div class="action-row">
     <a class="button-link" href="{% url 'pages:browse' %}">{% trans "تصفح الكليات والمواد" %}</a>
+    <a class="quiet-link resume-link" href="{% url 'catalog:request_material' %}">{% trans "اطلب ملفاً ناقصاً" %}</a>
     {% if resume_url %}
       <a class="quiet-link resume-link" href="{{ resume_url }}">{% trans "تابع من آخر مكان" %}</a>
     {% endif %}
@@ -39,7 +40,7 @@
         {% for offering in course_results %}
           <article class="result-card">
             <p class="kicker">{% trans "مادة" %}</p>
-            <h3>{{ offering.course.name }}</h3>
+            <h3><a href="{% url 'catalog:course_detail' offering.id %}">{{ offering.course.name }}</a></h3>
             <p>{{ offering.program.faculty.university.name }} - {{ offering.program.faculty.name }}</p>
             <small>{{ offering.year_level.name }} - {{ offering.term.name }}</small>
           </article>
@@ -117,8 +118,9 @@
       <div class="compact-list">
         {% for offering in missing_offerings %}
           <article>
-            <h3>{{ offering.course.name }}</h3>
+            <h3><a href="{% url 'catalog:course_detail' offering.id %}">{{ offering.course.name }}</a></h3>
             <p>{{ offering.year_level.name }} - {{ offering.term.name }}</p>
+            <a class="quiet-link compact-action" href="{% url 'catalog:request_material' %}?offering={{ offering.id }}">{% trans "اطلب ملفاً" %}</a>
           </article>
         {% endfor %}
       </div>

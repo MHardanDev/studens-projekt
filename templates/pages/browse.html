@@ -16,6 +16,9 @@
       <button type="submit">{% trans "بحث" %}</button>
     </div>
   </form>
+  <div class="action-row">
+    <a class="quiet-link resume-link" href="{% url 'catalog:request_material' %}">{% trans "اطلب ملفاً ناقصاً" %}</a>
+  </div>
 </section>
 
 {% if query %}
@@ -29,7 +32,7 @@
         {% for offering in course_results %}
           <article class="result-card">
             <p class="kicker">{% trans "مادة" %}</p>
-            <h3>{{ offering.course.name }}</h3>
+            <h3><a href="{% url 'catalog:course_detail' offering.id %}">{{ offering.course.name }}</a></h3>
             <p>{{ offering.program.faculty.name }} - {{ offering.program.name }}</p>
             <small>{{ offering.year_level.name }} - {{ offering.term.name }}</small>
           </article>
@@ -81,8 +84,9 @@
                                 {% for offering in term.course_offerings.all %}
                                   <li id="course-{{ offering.id }}">
                                     <div class="course-main">
-                                      <span class="course-name">{{ offering.course.name }}</span>
+                                      <a class="course-name" href="{% url 'catalog:course_detail' offering.id %}">{{ offering.course.name }}</a>
                                       <small>{{ offering.academic_year|default:"عام غير محدد" }}</small>
+                                      <a class="quiet-link compact-action" href="{% url 'catalog:request_material' %}?offering={{ offering.id }}">{% trans "اطلب ملفاً" %}</a>
                                     </div>
                                     {% if offering.public_documents %}
                                       <ul class="mini-doc-list">

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "طلب ملف ناقص" %} - {{ site_name }}{% endblock %}
+
+{% block content %}
+<section class="form-panel" aria-labelledby="request-title">
+  <p class="eyebrow">{% trans "مساعدة الطلاب" %}</p>
+  <h1 id="request-title">{% trans "اطلب ملفاً ناقصاً" %}</h1>
+  <p class="lead">{% trans "حدد المادة ونوع الملف الذي تحتاجه. لا يلزم تسجيل الدخول، وبيانات التواصل الاختيارية لا تظهر للعامة." %}</p>
+
+  <form class="auth-form" method="post" action=".">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="form-errors">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in form %}
+      <div class="field">
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.help_text %}<small class="empty-note">{{ field.help_text }}</small>{% endif %}
+        {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+      </div>
+    {% endfor %}
+    <button type="submit">{% trans "إرسال الطلب" %}</button>
+  </form>
+</section>
+{% endblock %}
