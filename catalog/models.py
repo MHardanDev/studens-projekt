@@ -624,6 +624,7 @@ class DocumentVersion(TimestampedModel):
         null=True,
     )
     reviewed_at = models.DateTimeField(blank=True, null=True)
+    full_download_count = models.PositiveBigIntegerField(default=0, editable=False)
 
     class Meta:
         ordering = ["document", "-version_number"]

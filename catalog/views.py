@@ -2,8 +2,10 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Count, F, Sum
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_safe
 
 from accounts.models import User
@@ -16,6 +18,7 @@ from accounts.permissions import (
     user_can_review_document,
 )
 from pages.preferences import remember_public_location
+from pages.seo import page_seo
 
 from .downloads import download_response, has_published_file
 from .forms import (
@@ -30,6 +33,7 @@ from .forms import (
 from .models import (
     CourseOffering,
     DocumentReport,
+    DocumentVersion,
     MissingMaterialRequest,
     StudyDocument,
 )
@@ -216,6 +220,30 @@ def document_detail(request, document_id):
         pk=document_id,
     )
     version = document.published_version
+    description = version.description or (
+        f"{version.get_content_type_display()} لمادة {version.offering.course.name}، "
+        f"{version.offering.year_level.name}، {version.offering.term.name}."
+    )
+    seo_context = page_seo(
+        request,
+        title=f"{version.title} | {settings.SITE_NAME}",
+        description=description,
+        canonical_path=document.get_absolute_url(),
+        schema_type="LearningResource",
+        schema_extra={
+            "learningResourceType": version.get_content_type_display(),
+            "educationalLevel": version.offering.year_level.name,
+            "isAccessibleForFree": True,
+            "datePublished": (
+                version.reviewed_at or version.created_at
+            ).date().isoformat(),
+            "about": {
+                "@type": "Course",
+                "name": version.offering.course.name,
+            },
+        },
+        og_type="article",
+    )
     response = render(
         request,
         "catalog/document_detail.html",
@@ -224,6 +252,7 @@ def document_detail(request, document_id):
             "version": version,
             "download_available": has_published_file(version),
             "site_name": settings.SITE_NAME,
+            **seo_context,
         },
     )
     return remember_public_location(response, request)
@@ -235,7 +264,17 @@ def download_document(request, document_id):
         published_documents().select_related("published_version"),
         pk=document_id,
     )
-    return download_response(request, document.published_version)
+    version = document.published_version
+    response = download_response(request, version)
+    if (
+        request.method == "GET"
+        and "Range" not in request.headers
+        and response.status_code == 200
+    ):
+        DocumentVersion.objects.filter(pk=version.pk).update(
+            full_download_count=F("full_download_count") + 1,
+        )
+    return response
 
 
 @require_safe
@@ -252,6 +291,27 @@ def course_detail(request, offering_id):
     documents = published_documents().filter(offering=offering).select_related(
         "published_version",
     )
+    description = (
+        f"ملفات وطلبات مادة {offering.course.name} في {offering.program.name}، "
+        f"{offering.year_level.name}، {offering.term.name}."
+    )
+    schema_extra = {
+        "educationalLevel": offering.year_level.name,
+        "isAccessibleForFree": True,
+    }
+    if offering.course.code:
+        schema_extra["courseCode"] = offering.course.code
+    seo_context = page_seo(
+        request,
+        title=f"{offering.course.name} | {settings.SITE_NAME}",
+        description=description,
+        canonical_path=reverse(
+            "catalog:course_detail",
+            args=[offering.pk],
+        ),
+        schema_type="Course",
+        schema_extra=schema_extra,
+    )
     response = render(
         request,
         "catalog/course_detail.html",
@@ -259,9 +319,53 @@ def course_detail(request, offering_id):
             "offering": offering,
             "documents": documents,
             "site_name": settings.SITE_NAME,
+            **seo_context,
         },
     )
     return remember_public_location(response, request)
+
+
+@login_required
+@require_safe
+def moderation_metrics(request):
+    if request.user.role not in {User.Role.FACULTY_MODERATOR, User.Role.SITE_ADMIN}:
+        raise PermissionDenied("عرض المؤشرات متاح للمشرفين والمديرين فقط.")
+
+    scoped_documents = (
+        published_documents()
+        .filter(moderator_scope_filter(request.user))
+        .distinct()
+    )
+    totals = {
+        "documents": scoped_documents.count(),
+        "downloads": (
+            scoped_documents.aggregate(
+                total=Sum("published_version__full_download_count"),
+            )["total"]
+            or 0
+        ),
+        "reports": DocumentReport.objects.filter(
+            document__in=scoped_documents,
+        ).count(),
+    }
+    documents = (
+        scoped_documents.select_related(
+            "published_version",
+            "offering__course",
+            "offering__program__faculty__university",
+        )
+        .annotate(report_count=Count("reports", distinct=True))
+        .order_by("offering__course__name", "title")
+    )
+    return render(
+        request,
+        "catalog/moderation_metrics.html",
+        {
+            "documents": documents,
+            "totals": totals,
+            "site_name": settings.SITE_NAME,
+        },
+    )
 
 
 @require_http_methods(["GET", "POST"])

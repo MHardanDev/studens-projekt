@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /health/
+Disallow: /*/admin/
+Disallow: /*/accounts/
+Disallow: /*/contribute/
+Disallow: /*/moderation/
+Disallow: /*/requests/
+Disallow: /*/documents/*/download/
+Disallow: /*/documents/*/report/
+Disallow: /*?q=*
+
+Sitemap: {{ sitemap_url }}

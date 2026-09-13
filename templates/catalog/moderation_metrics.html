@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "مؤشرات المحتوى" %} - {{ site_name }}{% endblock %}
+
+{% block content %}
+<section class="moderation-page" aria-labelledby="metrics-title">
+  <header class="compact-intro">
+    <p class="eyebrow">{% trans "إشراف ضمن النطاق" %}</p>
+    <h1 id="metrics-title">{% trans "مؤشرات المحتوى المنشور" %}</h1>
+    <p class="lead">{% trans "مجاميع تشغيلية فقط. لا يسجل العداد عنوان IP أو الجهاز، ولا يحتسب HEAD أو Range كتنزيل كامل." %}</p>
+  </header>
+
+  <dl class="document-metadata metrics-summary">
+    <div><dt>{% trans "الملفات المنشورة" %}</dt><dd>{{ totals.documents }}</dd></div>
+    <div><dt>{% trans "بدء تنزيل كامل" %}</dt><dd>{{ totals.downloads }}</dd></div>
+    <div><dt>{% trans "البلاغات" %}</dt><dd>{{ totals.reports }}</dd></div>
+  </dl>
+
+  <section class="content-section" aria-labelledby="metrics-documents-title">
+    <h2 id="metrics-documents-title">{% trans "تفصيل الملفات ضمن نطاقك" %}</h2>
+    {% if documents %}
+      <div class="document-list">
+        {% for document in documents %}
+          <article class="document-row">
+            <div>
+              <h3><a href="{{ document.get_absolute_url }}">{{ document.title }}</a></h3>
+              <p>{{ document.offering.course.name }} - {{ document.offering.program.faculty.name }}</p>
+            </div>
+            <dl class="compact-metrics">
+              <div><dt>{% trans "تنزيلات كاملة" %}</dt><dd>{{ document.published_version.full_download_count }}</dd></div>
+              <div><dt>{% trans "بلاغات" %}</dt><dd>{{ document.report_count }}</dd></div>
+            </dl>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>{% trans "لا توجد ملفات منشورة ضمن نطاقك" %}</h3>
+        <p>{% trans "تظهر المؤشرات بعد اعتماد ملف داخل نطاق الإشراف." %}</p>
+      </div>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

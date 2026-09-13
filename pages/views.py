@@ -14,6 +14,7 @@ from .preferences import (
     DATA_SAVER_COOKIE,
     remember_public_location,
 )
+from .seo import page_seo
 
 
 def approved_documents():
@@ -60,6 +61,30 @@ def base_context():
 def home(request):
     context = base_context()
     context["query"] = request.GET.get("q", "").strip()
+    home_path = reverse("pages:home")
+    context.update(
+        page_seo(
+            request,
+            title=f"{settings.SITE_NAME} | ملفات ومواد جامعية للطلاب",
+            description=(
+                "ابحث مجاناً عن المواد والملفات الجامعية المنشورة، "
+                "وتصفح الكليات والبرامج من واجهة عربية خفيفة."
+            ),
+            canonical_path=home_path,
+            schema_type="WebSite",
+            schema_extra={
+                "potentialAction": {
+                    "@type": "SearchAction",
+                    "target": (
+                        f"{request.build_absolute_uri(home_path)}"
+                        "?q={search_term_string}"
+                    ),
+                    "query-input": "required name=search_term_string",
+                },
+            },
+            indexable=not context["query"],
+        ),
+    )
     context["latest_documents"] = (
         approved_documents()
         .select_related(
@@ -114,6 +139,19 @@ def browse(request):
     )
     context = base_context()
     context["query"] = request.GET.get("q", "").strip()
+    context.update(
+        page_seo(
+            request,
+            title=f"تصفح الكليات والمواد | {settings.SITE_NAME}",
+            description=(
+                "تصفح الجامعات والكليات والبرامج والمواد والملفات المنشورة "
+                "من فهرس دراسي عربي خفيف."
+            ),
+            canonical_path=reverse("pages:browse"),
+            schema_type="CollectionPage",
+            indexable=not context["query"],
+        ),
+    )
     context["universities"] = universities
     course_results, document_results = search_catalog(context["query"])
     context["course_results"] = course_results
@@ -129,22 +167,54 @@ def browse(request):
 
 @require_safe
 def about(request):
-    return render(request, "pages/about.html", base_context())
+    context = page_seo(
+        request,
+        title=f"عن الموقع | {settings.SITE_NAME}",
+        description=(
+            "تعرف إلى المبادرة الطلابية المستقلة وهدفها في تنظيم الوصول "
+            "المجاني إلى الملفات الجامعية المنشورة."
+        ),
+    )
+    return render(request, "pages/about.html", context)
 
 
 @require_safe
 def content_guidelines(request):
-    return render(request, "pages/content_guidelines.html", base_context())
+    context = page_seo(
+        request,
+        title=f"إرشادات مشاركة المحتوى | {settings.SITE_NAME}",
+        description=(
+            "إرشادات حقوق المصدر والإذن والفحص والمراجعة قبل نشر الملفات "
+            "الدراسية على الموقع."
+        ),
+    )
+    return render(request, "pages/content_guidelines.html", context)
 
 
 @require_safe
 def privacy(request):
-    return render(request, "pages/privacy.html", base_context())
+    context = page_seo(
+        request,
+        title=f"الخصوصية | {settings.SITE_NAME}",
+        description=(
+            "مسودة خصوصية توضح البيانات والكوكيز والعدادات الداخلية المحدودة "
+            "المستخدمة فعلياً في الموقع."
+        ),
+    )
+    return render(request, "pages/privacy.html", context)
 
 
 @require_safe
 def contact_reporting(request):
-    return render(request, "pages/contact_reporting.html", base_context())
+    context = page_seo(
+        request,
+        title=f"التواصل والإبلاغ | {settings.SITE_NAME}",
+        description=(
+            "طريقة الإبلاغ عن خطأ أو ملف لا يفتح أو انتهاك حقوق في الملفات "
+            "الجامعية المنشورة."
+        ),
+    )
+    return render(request, "pages/contact_reporting.html", context)
 
 
 @require_POST

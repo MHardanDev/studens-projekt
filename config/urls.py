@@ -18,10 +18,13 @@ from django.conf.urls.i18n import i18n_patterns
 from django.contrib import admin
 from django.urls import include, path
 
+from pages.seo_views import robots, sitemap
 from pages.views import health
 
 urlpatterns = [
     path("health/", health, name="health"),
+    path("robots.txt", robots, name="robots"),
+    path("sitemap.xml", sitemap, name="sitemap"),
 ]
 
 urlpatterns += i18n_patterns(

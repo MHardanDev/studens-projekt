@@ -627,6 +627,31 @@ h5 {
   color: var(--muted);
 }
 
+.metrics-summary {
+  margin-block-start: var(--space-4);
+}
+
+.compact-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(5rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.compact-metrics div {
+  min-width: 0;
+}
+
+.compact-metrics dt {
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.compact-metrics dd {
+  margin: .15rem 0 0;
+  font-weight: 800;
+}
+
 .document-actions {
   display: flex;
   flex-wrap: wrap;

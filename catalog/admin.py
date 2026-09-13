@@ -279,6 +279,7 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         "reviewed_by",
         "reviewed_at",
         "rights_basis",
+        "full_download_count",
         "checksum_sha256",
     ]
     list_filter = [
@@ -327,6 +328,7 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         "uploaded_by",
         "reviewed_by",
         "reviewed_at",
+        "full_download_count",
     ]
     ordering = ["-reviewed_at", "document", "-version_number"]
 
