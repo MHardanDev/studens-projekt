@@ -18,19 +18,25 @@ def offering_matches_scope(offering, scope):
     return True
 
 
-def moderator_scope_filter(user):
+def moderator_scope_filter(user, prefix=""):
     scopes = ModeratorScope.objects.filter(user=user)
     query = Q(pk__in=[])
     for scope in scopes:
         current = Q()
         if scope.course_id:
-            current &= Q(offering__course=scope.course)
+            current &= Q(**{f"{prefix}offering__course": scope.course})
         if scope.program_id:
-            current &= Q(offering__program=scope.program)
+            current &= Q(**{f"{prefix}offering__program": scope.program})
         if scope.faculty_id:
-            current &= Q(offering__program__faculty=scope.faculty)
+            current &= Q(**{f"{prefix}offering__program__faculty": scope.faculty})
         if scope.university_id:
-            current &= Q(offering__program__faculty__university=scope.university)
+            current &= Q(
+                **{
+                    f"{prefix}offering__program__faculty__university": (
+                        scope.university
+                    ),
+                },
+            )
         query |= current
     return query
 
@@ -78,3 +84,17 @@ def user_can_review_document(user, document):
     if document.contributor_id and document.contributor_id == user.id:
         return False
     return user_can_moderate_offering(user, document.offering)
+
+
+def user_can_access_document_report_management(user):
+    return bool(
+        user
+        and user.is_authenticated
+        and user.role in {User.Role.FACULTY_MODERATOR, User.Role.SITE_ADMIN}
+    )
+
+
+def user_can_manage_document_report(user, report):
+    return user_can_access_document_report_management(
+        user,
+    ) and user_can_review_document(user, report.document)

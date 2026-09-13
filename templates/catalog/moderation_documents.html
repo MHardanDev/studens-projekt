@@ -42,14 +42,56 @@
                 <dt>{% trans "التاريخ" %}</dt>
                 <dd>{{ document.updated_at|date:"Y-m-d" }}</dd>
               </div>
+              <div>
+                <dt>{% trans "صاحب المحتوى" %}</dt>
+                <dd>{{ document.content_owner_name|default:"غير موثق" }}</dd>
+              </div>
+              <div>
+                <dt>{% trans "المصدر" %}</dt>
+                <dd>{{ document.content_source|default:"غير موثق" }}</dd>
+              </div>
+              <div>
+                <dt>{% trans "أساس النشر" %}</dt>
+                <dd>{{ document.get_rights_basis_display|default:"غير موثق" }}</dd>
+              </div>
+              {% if document.license_name %}
+                <div>
+                  <dt>{% trans "الترخيص" %}</dt>
+                  <dd>{{ document.license_name }}</dd>
+                </div>
+              {% endif %}
+              <div>
+                <dt>{% trans "دليل الإذن الخاص" %}</dt>
+                <dd>{{ document.permission_evidence|default:"غير مرفق" }}</dd>
+              </div>
+              <div>
+                <dt>{% trans "تواصل الحقوق الخاص" %}</dt>
+                <dd>{{ document.rights_contact|default:"غير مرفق" }}</dd>
+              </div>
+              <div>
+                <dt>{% trans "الإقرار" %}</dt>
+                <dd>
+                  {% if document.rights_declared_at and document.rights_declared_by %}
+                    {{ document.rights_declared_at|date:"Y-m-d H:i" }} - {{ document.rights_declared_by }}
+                  {% else %}
+                    {% trans "غير مكتمل" %}
+                  {% endif %}
+                </dd>
+              </div>
             </dl>
+            {% if document.rights_metadata_errors %}
+              <div class="form-errors" role="alert">
+                <strong>{% trans "نواقص تمنع الاعتماد:" %}</strong>
+                {{ document.rights_metadata_errors|join:"، " }}
+              </div>
+            {% endif %}
           </div>
           <div class="review-actions">
             <form method="post" action=".">
               {% csrf_token %}
               <input type="hidden" name="document_id" value="{{ document.id }}">
               <input type="hidden" name="action" value="approve">
-              <button type="submit">{% trans "اعتماد" %}</button>
+              <button type="submit"{% if document.rights_metadata_errors %} disabled{% endif %}>{% trans "اعتماد" %}</button>
             </form>
             <form method="post" action=".">
               {% csrf_token %}

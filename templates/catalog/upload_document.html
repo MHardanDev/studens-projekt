@@ -8,6 +8,7 @@
   <p class="eyebrow">{% trans "مساهمة" %}</p>
   <h1 id="upload-title">{% trans "رفع ملف PDF" %}</h1>
   <p class="lead">{% blocktrans %}يسمح حالياً بملفات PDF فقط، حتى {{ max_upload_mib }} MiB. الملف يبقى خاصاً بانتظار الفحص ولا ينشر تلقائياً.{% endblocktrans %}</p>
+  <p class="notice">{% trans "بيانات الإذن والتواصل لا تظهر للعامة. الإقرار مطلوب، لكنه لا يحسم وحده صحة الحقوق عند النزاع." %}</p>
 
   {% if form.errors %}
     <div class="form-errors" role="alert">

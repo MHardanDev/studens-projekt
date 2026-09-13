@@ -9,7 +9,9 @@ from django.views.decorators.http import require_http_methods, require_safe
 from accounts.models import User
 from accounts.permissions import (
     moderator_scope_filter,
+    user_can_access_document_report_management,
     user_can_access_material_request_management,
+    user_can_manage_document_report,
     user_can_manage_material_request,
     user_can_review_document,
 )
@@ -18,15 +20,21 @@ from pages.preferences import remember_public_location
 from .downloads import download_response, has_published_file
 from .forms import (
     DocumentReportForm,
+    DocumentReportModerationForm,
     MissingMaterialRequestForm,
     MissingMaterialRequestModerationForm,
     ModerationDecisionForm,
     StudyDocumentUploadForm,
     scoped_offerings_for_user,
 )
-from .models import CourseOffering, MissingMaterialRequest, StudyDocument
+from .models import (
+    CourseOffering,
+    DocumentReport,
+    MissingMaterialRequest,
+    StudyDocument,
+)
 from .publication import published_documents
-from .rate_limits import consume_material_request_quota
+from .rate_limits import consume_document_report_quota, consume_material_request_quota
 
 
 @login_required
@@ -105,6 +113,7 @@ def moderation_documents(request):
     )
 
 
+@require_http_methods(["GET", "POST"])
 def report_document(request, document_id):
     document = get_object_or_404(
         published_documents().select_related("offering__course"),
@@ -113,6 +122,17 @@ def report_document(request, document_id):
     if request.method == "POST":
         form = DocumentReportForm(request.POST)
         if form.is_valid():
+            if not consume_document_report_quota(request):
+                form.add_error(
+                    None,
+                    "وصلت إلى حد إرسال البلاغات المؤقت. حاول مرة أخرى لاحقاً.",
+                )
+                return render(
+                    request,
+                    "catalog/report_document.html",
+                    {"document": document, "form": form},
+                    status=429,
+                )
             report = form.save(commit=False)
             report.document = document
             if request.user.is_authenticated:
@@ -131,6 +151,56 @@ def report_document(request, document_id):
             "document": document,
             "form": form,
         },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def moderation_document_reports(request):
+    if not user_can_access_document_report_management(request.user):
+        raise PermissionDenied("إدارة البلاغات تحتاج صلاحية إشراف.")
+
+    selected_report = None
+    selected_form = None
+    if request.method == "POST":
+        selected_report = get_object_or_404(
+            DocumentReport.objects.select_related(
+                "document__contributor",
+                "document__offering__course",
+                "document__offering__program__faculty__university",
+            ),
+            pk=request.POST.get("report_id"),
+        )
+        if not user_can_manage_document_report(request.user, selected_report):
+            raise PermissionDenied("هذا البلاغ خارج نطاق إشرافك.")
+        selected_form = DocumentReportModerationForm(request.POST)
+        if selected_form.is_valid():
+            try:
+                selected_report.process(
+                    request.user,
+                    selected_form.cleaned_data["action"],
+                    selected_form.cleaned_data["moderator_notes"],
+                )
+                messages.success(request, "تم تحديث البلاغ وتطبيق الإجراء.")
+                return redirect("catalog:moderation_document_reports")
+            except ValidationError as error:
+                selected_form.add_error(None, error)
+
+    report_rows = []
+    for report in document_reports_for_user(request.user):
+        report_rows.append(
+            {
+                "item": report,
+                "form": selected_form
+                if report == selected_report
+                else DocumentReportModerationForm(),
+            },
+        )
+
+    return render(
+        request,
+        "catalog/moderation_document_reports.html",
+        {"report_rows": report_rows, "site_name": settings.SITE_NAME},
     )
 
 
@@ -301,12 +371,34 @@ def review_documents_for_user(user):
         .exclude(contributor=user)
         .select_related(
             "contributor",
+            "rights_declared_by",
             "offering__course",
             "offering__program__faculty__university",
             "offering__year_level",
             "offering__term",
         )
         .order_by("updated_at", "title")
+        .distinct()
+    )
+
+
+def document_reports_for_user(user):
+    return (
+        DocumentReport.objects.filter(
+            moderator_scope_filter(user, prefix="document__"),
+            status__in=[
+                DocumentReport.Status.OPEN,
+                DocumentReport.Status.REVIEWING,
+            ],
+        )
+        .exclude(document__contributor=user)
+        .select_related(
+            "reporter",
+            "document__contributor",
+            "document__offering__course",
+            "document__offering__program__faculty__university",
+        )
+        .order_by("created_at")
         .distinct()
     )
 

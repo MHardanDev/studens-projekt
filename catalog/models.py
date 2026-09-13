@@ -253,6 +253,11 @@ class StudyDocument(TimestampedModel):
         INFECTED = "infected", "مصاب"
         FAILED = "failed", "فشل الفحص"
 
+    class RightsBasis(models.TextChoices):
+        CONTRIBUTOR_ORIGINAL = "contributor_original", "من إعداد المساهم"
+        OWNER_PERMISSION = "owner_permission", "بإذن صريح من صاحب المحتوى"
+        OPEN_LICENSE = "open_license", "بترخيص يسمح بالنشر"
+
     offering = models.ForeignKey(
         CourseOffering,
         on_delete=models.PROTECT,
@@ -276,6 +281,33 @@ class StudyDocument(TimestampedModel):
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         related_name="study_documents",
+        blank=True,
+        null=True,
+    )
+    content_owner_name = models.CharField(max_length=160, blank=True)
+    content_source = models.TextField(blank=True)
+    rights_basis = models.CharField(
+        max_length=32,
+        choices=RightsBasis.choices,
+        blank=True,
+    )
+    license_name = models.CharField(max_length=160, blank=True)
+    permission_evidence = models.TextField(blank=True)
+    rights_contact = models.CharField(max_length=254, blank=True)
+    rights_declaration_text = models.TextField(blank=True)
+    rights_declared_at = models.DateTimeField(blank=True, null=True)
+    rights_declared_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="rights_declared_documents",
+        blank=True,
+        null=True,
+    )
+    rights_reviewed_at = models.DateTimeField(blank=True, null=True)
+    rights_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="rights_reviewed_documents",
         blank=True,
         null=True,
     )
@@ -345,6 +377,10 @@ class StudyDocument(TimestampedModel):
                 raise ValidationError(
                     {"status": "اعتماد الملف يحتاج إنشاء نسخة منشورة عبر المراجعة."},
                 )
+            if not self.is_demo and not self.has_complete_rights_metadata:
+                raise ValidationError(
+                    {"status": "اعتماد الملف يحتاج بيانات حقوق مكتملة ومراجعة."},
+                )
 
     @property
     def course(self):
@@ -356,6 +392,37 @@ class StudyDocument(TimestampedModel):
     @property
     def is_publishable_after_scan(self):
         return self.scan_status == self.ScanStatus.CLEAN
+
+    @property
+    def rights_metadata_errors(self):
+        errors = []
+        if not self.content_owner_name.strip():
+            errors.append("اسم صاحب المحتوى")
+        if not self.content_source.strip():
+            errors.append("مصدر المحتوى")
+        if not self.rights_basis:
+            errors.append("أساس السماح بالنشر")
+        if (
+            self.rights_basis == self.RightsBasis.OWNER_PERMISSION
+            and not self.permission_evidence.strip()
+        ):
+            errors.append("دليل الإذن")
+        if (
+            self.rights_basis == self.RightsBasis.OPEN_LICENSE
+            and not self.license_name.strip()
+        ):
+            errors.append("اسم الترخيص وشروطه")
+        if not self.rights_declaration_text.strip():
+            errors.append("نص إقرار الحقوق")
+        if not self.rights_declared_at:
+            errors.append("تاريخ قبول الإقرار")
+        if not self.rights_declared_by_id:
+            errors.append("الحساب الذي قبل الإقرار")
+        return errors
+
+    @property
+    def has_complete_rights_metadata(self):
+        return not self.rights_metadata_errors
 
     @property
     def can_be_public(self):
@@ -391,13 +458,23 @@ class StudyDocument(TimestampedModel):
             raise ValidationError("لا يعتمد إلا ملف بانتظار المراجعة.")
         if self.scan_status != self.ScanStatus.CLEAN:
             raise ValidationError("لا يعتمد الملف قبل نجاح الفحص.")
+        if not self.has_complete_rights_metadata:
+            missing = "، ".join(self.rights_metadata_errors)
+            raise ValidationError(f"بيانات الحقوق غير مكتملة: {missing}.")
         if not user_can_review_document(reviewer, self):
             raise ValidationError("لا يملك هذا الحساب صلاحية اعتماد الملف.")
 
-        version = self.create_version_snapshot(reviewer, page_count=page_count)
+        reviewed_at = timezone.now()
+        version = self.create_version_snapshot(
+            reviewer,
+            page_count=page_count,
+            reviewed_at=reviewed_at,
+        )
         self.status = self.Status.APPROVED
         self.reviewed_by = reviewer
-        self.reviewed_at = timezone.now()
+        self.reviewed_at = reviewed_at
+        self.rights_reviewed_by = reviewer
+        self.rights_reviewed_at = reviewed_at
         self.rejection_reason = ""
         self.published_version = version
         self.save(
@@ -405,6 +482,8 @@ class StudyDocument(TimestampedModel):
                 "status",
                 "reviewed_by",
                 "reviewed_at",
+                "rights_reviewed_by",
+                "rights_reviewed_at",
                 "rejection_reason",
                 "published_version",
                 "updated_at",
@@ -437,7 +516,8 @@ class StudyDocument(TimestampedModel):
         )
         return self
 
-    def create_version_snapshot(self, reviewer, page_count=None):
+    def create_version_snapshot(self, reviewer, page_count=None, reviewed_at=None):
+        reviewed_at = reviewed_at or timezone.now()
         next_number = (self.versions.aggregate(Max("version_number"))[
             "version_number__max"
         ] or 0) + 1
@@ -452,9 +532,18 @@ class StudyDocument(TimestampedModel):
             file_size=self.file_size,
             page_count=page_count,
             checksum_sha256=self.calculate_sha256(),
+            content_owner_name=self.content_owner_name,
+            content_source=self.content_source,
+            rights_basis=self.rights_basis,
+            license_name=self.license_name,
+            permission_evidence=self.permission_evidence,
+            rights_contact=self.rights_contact,
+            rights_declaration_text=self.rights_declaration_text,
+            rights_declared_at=self.rights_declared_at,
+            rights_declared_by=self.rights_declared_by,
             uploaded_by=self.contributor,
             reviewed_by=reviewer,
-            reviewed_at=timezone.now(),
+            reviewed_at=reviewed_at,
         )
 
     def calculate_sha256(self):
@@ -501,6 +590,25 @@ class DocumentVersion(TimestampedModel):
     file_size = models.PositiveIntegerField(blank=True, null=True)
     page_count = models.PositiveIntegerField(blank=True, null=True)
     checksum_sha256 = models.CharField(max_length=64, blank=True)
+    content_owner_name = models.CharField(max_length=160, blank=True)
+    content_source = models.TextField(blank=True)
+    rights_basis = models.CharField(
+        max_length=32,
+        choices=StudyDocument.RightsBasis.choices,
+        blank=True,
+    )
+    license_name = models.CharField(max_length=160, blank=True)
+    permission_evidence = models.TextField(blank=True)
+    rights_contact = models.CharField(max_length=254, blank=True)
+    rights_declaration_text = models.TextField(blank=True)
+    rights_declared_at = models.DateTimeField(blank=True, null=True)
+    rights_declared_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="declared_document_versions",
+        blank=True,
+        null=True,
+    )
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -536,7 +644,7 @@ class DocumentReport(TimestampedModel):
     class ReportType(models.TextChoices):
         SCIENTIFIC_ERROR = "scientific_error", "خطأ علمي"
         BROKEN_FILE = "broken_file", "ملف لا يفتح"
-        COPYRIGHT = "copyright", "حقوق نشر"
+        COPYRIGHT = "copyright", "انتهاك حقوق النشر"
         INAPPROPRIATE = "inappropriate", "محتوى غير مناسب"
         OTHER = "other", "غير ذلك"
 
@@ -571,6 +679,15 @@ class DocumentReport(TimestampedModel):
         null=True,
     )
     reporter_contact = models.CharField(max_length=254, blank=True)
+    moderator_notes = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_document_reports",
+        blank=True,
+        null=True,
+    )
+    reviewed_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -584,6 +701,41 @@ class DocumentReport(TimestampedModel):
 
     def __str__(self):
         return f"{self.get_report_type_display()} - {self.document.title}"
+
+    def process(self, reviewer, action, notes=""):
+        from accounts.permissions import user_can_review_document
+
+        if not user_can_review_document(reviewer, self.document):
+            raise ValidationError("لا يملك هذا الحساب صلاحية معالجة البلاغ.")
+        if action not in {"review", "resolve", "reject", "block"}:
+            raise ValidationError("إجراء البلاغ غير صالح.")
+        if action == "block" and not notes.strip():
+            raise ValidationError("سبب الحجب مطلوب.")
+
+        if action == "block":
+            self.document.status = StudyDocument.Status.ARCHIVED
+            self.document.save(update_fields=["status", "updated_at"])
+            self.status = self.Status.RESOLVED
+        elif action == "resolve":
+            self.status = self.Status.RESOLVED
+        elif action == "review":
+            self.status = self.Status.REVIEWING
+        else:
+            self.status = self.Status.REJECTED
+
+        self.moderator_notes = notes.strip()
+        self.reviewed_by = reviewer
+        self.reviewed_at = timezone.now()
+        self.save(
+            update_fields=[
+                "status",
+                "moderator_notes",
+                "reviewed_by",
+                "reviewed_at",
+                "updated_at",
+            ],
+        )
+        return self
 
 
 class MissingMaterialRequest(TimestampedModel):

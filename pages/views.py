@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_safe
 
 from catalog.models import CourseOffering, StudyDocument, University
 from catalog.publication import published_documents
@@ -125,6 +125,26 @@ def browse(request):
         request,
         include_search=bool(context["query"]),
     )
+
+
+@require_safe
+def about(request):
+    return render(request, "pages/about.html", base_context())
+
+
+@require_safe
+def content_guidelines(request):
+    return render(request, "pages/content_guidelines.html", base_context())
+
+
+@require_safe
+def privacy(request):
+    return render(request, "pages/privacy.html", base_context())
+
+
+@require_safe
+def contact_reporting(request):
+    return render(request, "pages/contact_reporting.html", base_context())
 
 
 @require_POST

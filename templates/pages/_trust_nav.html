@@ -1,0 +1,7 @@
+{% load i18n %}
+<nav class="trust-nav" aria-label="{% trans 'صفحات الثقة' %}">
+  <a href="{% url 'pages:about' %}">{% trans "عن الموقع" %}</a>
+  <a href="{% url 'pages:content_guidelines' %}">{% trans "إرشادات مشاركة المحتوى" %}</a>
+  <a href="{% url 'pages:privacy' %}">{% trans "الخصوصية" %}</a>
+  <a href="{% url 'pages:contact_reporting' %}">{% trans "التواصل والإبلاغ" %}</a>
+</nav>

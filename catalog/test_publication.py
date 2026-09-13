@@ -8,11 +8,13 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import ContributorScope, ModeratorScope, User
 from pages.preferences import DATA_SAVER_COOKIE, LAST_LOCATION_COOKIE
 
 from .models import Faculty, StudyDocument
+from .rights import RIGHTS_DECLARATION_TEXT
 
 
 class PublicDocumentTests(TestCase):
@@ -62,6 +64,12 @@ class PublicDocumentTests(TestCase):
             scan_status=StudyDocument.ScanStatus.CLEAN,
             contributor=self.contributor,
             contributor_name=self.contributor.username,
+            content_owner_name="صاحب محتوى تجريبي",
+            content_source="ملاحظات أصلية للاختبار.",
+            rights_basis=StudyDocument.RightsBasis.CONTRIBUTOR_ORIGINAL,
+            rights_declaration_text=RIGHTS_DECLARATION_TEXT,
+            rights_declared_at=timezone.now(),
+            rights_declared_by=self.contributor,
             uploaded_file=upload,
             original_filename="public-document.pdf",
             file_size=len(body),

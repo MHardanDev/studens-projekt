@@ -2,6 +2,7 @@ from pathlib import Path
 
 from django import forms
 from django.conf import settings
+from django.utils import timezone
 
 from accounts.models import ContributorScope, User
 
@@ -12,10 +13,15 @@ from .models import (
     StudyDocument,
 )
 from .publication import published_documents
+from .rights import RIGHTS_DECLARATION_TEXT
 
 
 class StudyDocumentUploadForm(forms.ModelForm):
     upload = forms.FileField(label="ملف PDF")
+    rights_declaration = forms.BooleanField(
+        label="أوافق على إقرار حق المشاركة",
+        help_text=RIGHTS_DECLARATION_TEXT,
+    )
 
     class Meta:
         model = StudyDocument
@@ -24,6 +30,12 @@ class StudyDocumentUploadForm(forms.ModelForm):
             "title",
             "description",
             "content_type",
+            "content_owner_name",
+            "content_source",
+            "rights_basis",
+            "license_name",
+            "permission_evidence",
+            "rights_contact",
             "academic_year",
             "publication_year",
             "upload",
@@ -33,8 +45,30 @@ class StudyDocumentUploadForm(forms.ModelForm):
             "title": "العنوان",
             "description": "الوصف",
             "content_type": "نوع المحتوى",
+            "content_owner_name": "اسم صاحب المحتوى",
+            "content_source": "مصدر المحتوى",
+            "rights_basis": "أساس السماح بالنشر",
+            "license_name": "اسم الترخيص وشروطه (عند الانطباق)",
+            "permission_evidence": "دليل الإذن الخاص (عند الانطباق)",
+            "rights_contact": "وسيلة تواصل للتحقق (اختيارية وخاصة)",
             "academic_year": "العام الدراسي",
             "publication_year": "سنة النشر",
+        }
+        help_texts = {
+            "content_source": (
+                "صف المصدر بوضوح، مثل: ملاحظاتي الأصلية أو اسم صاحب الملف."
+            ),
+            "permission_evidence": (
+                "يظهر للمشرفين المخولين فقط، ولا ينشر في صفحة الملف."
+            ),
+            "rights_contact": (
+                "للمراجعة عند الحاجة فقط، ولا يظهر للطلاب أو في البحث."
+            ),
+        }
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 4}),
+            "content_source": forms.Textarea(attrs={"rows": 3}),
+            "permission_evidence": forms.Textarea(attrs={"rows": 3}),
         }
 
     def __init__(self, *args, user=None, **kwargs):
@@ -42,8 +76,35 @@ class StudyDocumentUploadForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["offering"].queryset = scoped_offerings_for_user(user)
         self.fields["description"].required = False
+        self.fields["content_owner_name"].required = True
+        self.fields["content_source"].required = True
+        self.fields["rights_basis"].required = True
         self.fields["academic_year"].required = False
         self.fields["publication_year"].required = False
+        self.fields["license_name"].required = False
+        self.fields["permission_evidence"].required = False
+        self.fields["rights_contact"].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        rights_basis = cleaned_data.get("rights_basis")
+        if (
+            rights_basis == StudyDocument.RightsBasis.OWNER_PERMISSION
+            and not cleaned_data.get("permission_evidence", "").strip()
+        ):
+            self.add_error(
+                "permission_evidence",
+                "أضف مرجعاً خاصاً يوضح الإذن الصريح من صاحب المحتوى.",
+            )
+        if (
+            rights_basis == StudyDocument.RightsBasis.OPEN_LICENSE
+            and not cleaned_data.get("license_name", "").strip()
+        ):
+            self.add_error(
+                "license_name",
+                "اكتب اسم الترخيص وشروط الإسناد التي تسمح بالنشر.",
+            )
+        return cleaned_data
 
     def clean_upload(self):
         upload = self.cleaned_data["upload"]
@@ -72,6 +133,9 @@ class StudyDocumentUploadForm(forms.ModelForm):
         upload = self.cleaned_data["upload"]
         document.contributor = self.user
         document.contributor_name = self.user.get_username()
+        document.rights_declaration_text = RIGHTS_DECLARATION_TEXT
+        document.rights_declared_at = timezone.now()
+        document.rights_declared_by = self.user
         document.status = StudyDocument.Status.UPLOADED_PENDING_SCAN
         document.scan_status = StudyDocument.ScanStatus.PENDING
         document.uploaded_file = upload
@@ -143,7 +207,41 @@ class DocumentReportForm(forms.ModelForm):
         }
         widgets = {
             "body": forms.Textarea(attrs={"rows": 4}),
+            "reporter_contact": forms.TextInput(
+                attrs={"autocomplete": "email"},
+            ),
         }
+        help_texts = {
+            "reporter_contact": (
+                "يبقى خاصاً ولا يظهر في صفحة الملف أو الصفحات العامة."
+            ),
+        }
+
+
+class DocumentReportModerationForm(forms.Form):
+    action = forms.ChoiceField(
+        choices=[
+            ("review", "بدء المراجعة"),
+            ("resolve", "إغلاق بعد المعالجة"),
+            ("reject", "رفض البلاغ"),
+            ("block", "حجب الملف"),
+        ],
+        widget=forms.HiddenInput,
+    )
+    moderator_notes = forms.CharField(
+        label="ملاحظات المعالجة",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if (
+            cleaned_data.get("action") == "block"
+            and not cleaned_data.get("moderator_notes", "").strip()
+        ):
+            self.add_error("moderator_notes", "سبب الحجب مطلوب.")
+        return cleaned_data
 
 
 class MissingMaterialRequestForm(forms.ModelForm):

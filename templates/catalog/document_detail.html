@@ -23,6 +23,10 @@
     <div><dt>{% trans "تاريخ النشر" %}</dt><dd>{{ version.reviewed_at|default:version.created_at|date:"Y-m-d" }}</dd></div>
     {% if version.file_size %}<div><dt>{% trans "حجم الملف" %}</dt><dd>{{ version.file_size|filesizeformat }}</dd></div>{% endif %}
     {% if version.page_count %}<div><dt>{% trans "عدد الصفحات" %}</dt><dd>{{ version.page_count }}</dd></div>{% endif %}
+    <div><dt>{% trans "صاحب المحتوى" %}</dt><dd>{{ version.content_owner_name|default:"غير موثق لملف قديم" }}</dd></div>
+    <div><dt>{% trans "مصدر المحتوى" %}</dt><dd>{{ version.content_source|default:"غير موثق لملف قديم" }}</dd></div>
+    <div><dt>{% trans "أساس النشر" %}</dt><dd>{{ version.get_rights_basis_display|default:"غير موثق لملف قديم" }}</dd></div>
+    {% if version.license_name %}<div><dt>{% trans "الترخيص" %}</dt><dd>{{ version.license_name }}</dd></div>{% endif %}
   </dl>
 
   {% if data_saver_enabled %}

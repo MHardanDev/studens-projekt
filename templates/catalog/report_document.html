@@ -8,6 +8,7 @@
   <p class="eyebrow">{% trans "بلاغ" %}</p>
   <h1 id="report-title">{% trans "بلاغ عن ملف منشور" %}</h1>
   <p class="lead">{{ document.title }} - {{ document.offering.course.name }}</p>
+  <p class="notice">{% trans "تظهر وسيلة التواصل للمشرفين المخولين فقط. البلاغ لا يحجب الملف تلقائياً قبل مراجعته." %}</p>
   <p><a href="{{ document.get_absolute_url }}">{% trans "العودة إلى صفحة الملف" %}</a></p>
 
   <form class="auth-form" method="post" action=".">

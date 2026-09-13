@@ -15,7 +15,7 @@
       <a class="brand" href="{% url 'pages:home' %}">{{ site_name }}</a>
       <nav class="nav" aria-label="{% trans 'التنقل الرئيسي' %}">
         <a href="{% url 'pages:browse' %}">{% trans "تصفح الكليات" %}</a>
-        <a href="#trust">{% trans "الثقة والحقوق" %}</a>
+        <a href="{% url 'pages:about' %}">{% trans "عن الموقع" %}</a>
       </nav>
       <div class="account-nav">
         {% if request.user.is_authenticated %}
@@ -25,6 +25,7 @@
           {% endif %}
           {% if request.user.role == "faculty_moderator" or request.user.role == "site_admin" %}
             <a href="{% url 'catalog:moderation_documents' %}">{% trans "مراجعة" %}</a>
+            <a href="{% url 'catalog:moderation_document_reports' %}">{% trans "البلاغات" %}</a>
           {% endif %}
           {% if request.user.role == "faculty_moderator" or request.user.role == "site_admin" or perms.catalog.manage_missing_material_requests %}
             <a href="{% url 'catalog:moderation_material_requests' %}">{% trans "الطلبات" %}</a>
@@ -68,6 +69,12 @@
     <div class="shell footer-grid">
       <p>{% trans "منصة عربية مستقلة قيد البناء. البيانات المعروضة الآن تجريبية وليست خطة جامعية رسمية." %}</p>
       <p>{% trans "التنزيل متاح فقط للنسخ المعتمدة التي نجح فحصها. لا توجد إعلانات." %}</p>
+      <nav class="footer-nav" aria-label="{% trans 'صفحات الثقة' %}">
+        <a href="{% url 'pages:about' %}">{% trans "عن الموقع" %}</a>
+        <a href="{% url 'pages:content_guidelines' %}">{% trans "إرشادات مشاركة المحتوى" %}</a>
+        <a href="{% url 'pages:privacy' %}">{% trans "الخصوصية" %}</a>
+        <a href="{% url 'pages:contact_reporting' %}">{% trans "التواصل والإبلاغ" %}</a>
+      </nav>
     </div>
   </footer>
 </body>

@@ -16,6 +16,11 @@ urlpatterns = [
         views.moderation_material_requests,
         name="moderation_material_requests",
     ),
+    path(
+        "moderation/reports/",
+        views.moderation_document_reports,
+        name="moderation_document_reports",
+    ),
     path("requests/new/", views.request_material, name="request_material"),
     path(
         "courses/<int:offering_id>/",

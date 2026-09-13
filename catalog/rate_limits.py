@@ -5,12 +5,29 @@ from django.core.cache import cache
 
 
 def consume_material_request_quota(request):
+    return consume_quota(
+        request,
+        namespace="material-request",
+        limit=settings.MATERIAL_REQUEST_RATE_LIMIT,
+        timeout=settings.MATERIAL_REQUEST_RATE_WINDOW_SECONDS,
+    )
+
+
+def consume_document_report_quota(request):
+    return consume_quota(
+        request,
+        namespace="document-report",
+        limit=settings.DOCUMENT_REPORT_RATE_LIMIT,
+        timeout=settings.DOCUMENT_REPORT_RATE_WINDOW_SECONDS,
+    )
+
+
+def consume_quota(request, *, namespace, limit, timeout):
     identity = request_identity(request)
     digest = sha256(
-        f"{settings.SECRET_KEY}:{identity}".encode("utf-8"),
+        f"{settings.SECRET_KEY}:{namespace}:{identity}".encode("utf-8"),
     ).hexdigest()
-    cache_key = f"material-request-rate:{digest}"
-    timeout = settings.MATERIAL_REQUEST_RATE_WINDOW_SECONDS
+    cache_key = f"{namespace}-rate:{digest}"
 
     if cache.add(cache_key, 1, timeout=timeout):
         return True
@@ -18,7 +35,7 @@ def consume_material_request_quota(request):
         count = cache.incr(cache_key)
     except ValueError:
         return cache.add(cache_key, 1, timeout=timeout)
-    return count <= settings.MATERIAL_REQUEST_RATE_LIMIT
+    return count <= limit
 
 
 def request_identity(request):

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ site_name }} - {% trans "بلاغات الملفات" %}{% endblock %}
+
+{% block content %}
+<section class="browse-head compact-intro" aria-labelledby="reports-title">
+  <p class="eyebrow">{% trans "الإشراف" %}</p>
+  <h1 id="reports-title">{% trans "بلاغات الملفات" %}</h1>
+  <p class="lead">{% trans "تظهر البلاغات ضمن نطاقك فقط. بيانات التواصل خاصة ولا تعرض للعامة." %}</p>
+  <p class="notice">{% trans "حجب الملف يمنع فتحه أو تنزيله لاحقاً، لكنه لا يسترجع نسخاً سبق تنزيلها." %}</p>
+</section>
+
+<section class="content-section" aria-label="{% trans 'قائمة البلاغات' %}">
+  {% if report_rows %}
+    <div class="review-list">
+      {% for row in report_rows %}
+        <article class="review-item">
+          <div>
+            <p class="kicker">{{ row.item.document.offering.course.name }}</p>
+            <h2>{{ row.item.document.title }}</h2>
+            <dl class="meta-list">
+              <div><dt>{% trans "نوع البلاغ" %}</dt><dd>{{ row.item.get_report_type_display }}</dd></div>
+              <div><dt>{% trans "الوصف" %}</dt><dd>{{ row.item.body }}</dd></div>
+              <div><dt>{% trans "التواصل الخاص" %}</dt><dd>{{ row.item.reporter_contact|default:"غير مرفق" }}</dd></div>
+              <div><dt>{% trans "الحالة" %}</dt><dd>{{ row.item.get_status_display }}</dd></div>
+              <div><dt>{% trans "التاريخ" %}</dt><dd>{{ row.item.created_at|date:"Y-m-d H:i" }}</dd></div>
+            </dl>
+          </div>
+          <div class="review-actions">
+            {% if row.form.non_field_errors %}<div class="form-errors">{{ row.form.non_field_errors }}</div>{% endif %}
+            <form method="post" action=".">
+              {% csrf_token %}
+              <input type="hidden" name="report_id" value="{{ row.item.id }}">
+              <label for="notes-{{ row.item.id }}">{% trans "ملاحظات المعالجة" %}</label>
+              <textarea id="notes-{{ row.item.id }}" name="moderator_notes" rows="3"></textarea>
+              {% for error in row.form.moderator_notes.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+              <div class="button-row">
+                <button class="secondary-button" type="submit" name="action" value="review">{% trans "بدء المراجعة" %}</button>
+                <button type="submit" name="action" value="resolve">{% trans "إغلاق بعد المعالجة" %}</button>
+                <button class="secondary-button" type="submit" name="action" value="reject">{% trans "رفض البلاغ" %}</button>
+                <button class="danger-button" type="submit" name="action" value="block">{% trans "حجب الملف" %}</button>
+              </div>
+            </form>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <h2>{% trans "لا توجد بلاغات مفتوحة ضمن نطاقك" %}</h2>
+      <p>{% trans "البلاغات المغلقة تبقى محفوظة في الإدارة وفق سياسة الاحتفاظ التي ستعتمد قبل الإطلاق." %}</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

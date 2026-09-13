@@ -1,10 +1,14 @@
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 
+from accounts.models import User
 from accounts.permissions import (
     moderator_scope_filter,
+    user_can_access_document_report_management,
     user_can_access_material_request_management,
+    user_can_manage_document_report,
     user_can_manage_material_request,
+    user_can_review_document,
 )
 
 from .models import (
@@ -135,6 +139,8 @@ class StudyDocumentAdmin(admin.ModelAdmin):
         "content_type",
         "status",
         "scan_status",
+        "rights_basis",
+        "rights_complete",
         "contributor_name",
         "contributor",
         "reviewed_by",
@@ -152,6 +158,7 @@ class StudyDocumentAdmin(admin.ModelAdmin):
         "offering__course",
         "status",
         "scan_status",
+        "rights_basis",
         "content_type",
         "contributor",
         "academic_year",
@@ -161,6 +168,9 @@ class StudyDocumentAdmin(admin.ModelAdmin):
         "title",
         "description",
         "contributor_name",
+        "content_owner_name",
+        "content_source",
+        "license_name",
         "offering__course__name",
         "offering__course__code",
         "offering__program__name",
@@ -171,6 +181,18 @@ class StudyDocumentAdmin(admin.ModelAdmin):
         "file_size",
         "uploaded_content_type",
         "scan_notes",
+        "status",
+        "content_owner_name",
+        "content_source",
+        "rights_basis",
+        "license_name",
+        "permission_evidence",
+        "rights_contact",
+        "rights_declaration_text",
+        "rights_declared_at",
+        "rights_declared_by",
+        "rights_reviewed_at",
+        "rights_reviewed_by",
         "reviewed_by",
         "reviewed_at",
         "rejection_reason",
@@ -190,6 +212,47 @@ class StudyDocumentAdmin(admin.ModelAdmin):
     @admin.display(description="المادة")
     def course_name(self, obj):
         return obj.offering.course.name
+
+    @admin.display(boolean=True, description="حقوق مكتملة")
+    def rights_complete(self, obj):
+        return obj.has_complete_rights_metadata
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.is_superuser:
+            return queryset
+        if request.user.role not in {
+            User.Role.FACULTY_MODERATOR,
+            User.Role.SITE_ADMIN,
+        }:
+            return queryset.none()
+        return queryset.filter(moderator_scope_filter(request.user)).exclude(
+            contributor=request.user,
+        ).distinct()
+
+    def has_module_permission(self, request):
+        return self.has_view_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if not request.user.is_active or not request.user.is_staff:
+            return False
+        if obj is None:
+            return request.user.role in {
+                User.Role.FACULTY_MODERATOR,
+                User.Role.SITE_ADMIN,
+            }
+        return user_can_review_document(request.user, obj)
+
+    def has_change_permission(self, request, obj=None):
+        return self.has_view_permission(request, obj)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return bool(request.user.is_active and request.user.is_superuser)
 
     @admin.action(description="إرسال الملفات النظيفة إلى انتظار المراجعة")
     def move_clean_uploads_to_review(self, request, queryset):
@@ -215,6 +278,7 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         "uploaded_by",
         "reviewed_by",
         "reviewed_at",
+        "rights_basis",
         "checksum_sha256",
     ]
     list_filter = [
@@ -223,6 +287,7 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         "offering__program",
         "offering__course",
         "content_type",
+        "rights_basis",
         "uploaded_by",
         "reviewed_by",
         "reviewed_at",
@@ -230,6 +295,9 @@ class DocumentVersionAdmin(admin.ModelAdmin):
     search_fields = [
         "title",
         "description",
+        "content_owner_name",
+        "content_source",
+        "license_name",
         "checksum_sha256",
         "original_filename",
         "document__title",
@@ -247,6 +315,15 @@ class DocumentVersionAdmin(admin.ModelAdmin):
         "file_size",
         "page_count",
         "checksum_sha256",
+        "content_owner_name",
+        "content_source",
+        "rights_basis",
+        "license_name",
+        "permission_evidence",
+        "rights_contact",
+        "rights_declaration_text",
+        "rights_declared_at",
+        "rights_declared_by",
         "uploaded_by",
         "reviewed_by",
         "reviewed_at",
@@ -257,6 +334,43 @@ class DocumentVersionAdmin(admin.ModelAdmin):
     def course_name(self, obj):
         return obj.offering.course.name
 
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.is_superuser:
+            return queryset
+        if request.user.role not in {
+            User.Role.FACULTY_MODERATOR,
+            User.Role.SITE_ADMIN,
+        }:
+            return queryset.none()
+        return queryset.filter(
+            moderator_scope_filter(request.user),
+        ).exclude(document__contributor=request.user).distinct()
+
+    def has_module_permission(self, request):
+        return self.has_view_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if not request.user.is_active or not request.user.is_staff:
+            return False
+        if obj is None:
+            return request.user.role in {
+                User.Role.FACULTY_MODERATOR,
+                User.Role.SITE_ADMIN,
+            }
+        return user_can_review_document(request.user, obj.document)
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return bool(request.user.is_active and request.user.is_superuser)
+
 
 @admin.register(DocumentReport)
 class DocumentReportAdmin(admin.ModelAdmin):
@@ -266,6 +380,8 @@ class DocumentReportAdmin(admin.ModelAdmin):
         "status",
         "reporter",
         "reporter_contact",
+        "reviewed_by",
+        "reviewed_at",
         "created_at",
     ]
     list_filter = [
@@ -284,6 +400,50 @@ class DocumentReportAdmin(admin.ModelAdmin):
         "document__offering__course__name",
     ]
     ordering = ["-created_at"]
+    readonly_fields = [
+        "document",
+        "report_type",
+        "body",
+        "reporter",
+        "reporter_contact",
+        "status",
+        "moderator_notes",
+        "reviewed_by",
+        "reviewed_at",
+        "created_at",
+        "updated_at",
+    ]
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.is_superuser:
+            return queryset
+        if not user_can_access_document_report_management(request.user):
+            return queryset.none()
+        return queryset.filter(
+            moderator_scope_filter(request.user, prefix="document__"),
+        ).exclude(document__contributor=request.user).distinct()
+
+    def has_module_permission(self, request):
+        return self.has_view_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if not request.user.is_active or not request.user.is_staff:
+            return False
+        if obj is None:
+            return user_can_access_document_report_management(request.user)
+        return user_can_manage_document_report(request.user, obj)
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return bool(request.user.is_active and request.user.is_superuser)
 
 
 @admin.register(MissingMaterialRequest)
